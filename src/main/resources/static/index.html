@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Ledger System</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="logo">
+            <div class="logo-icon">L</div>
+            <div>
+                <h2>Ledger</h2>
+                <span>Banking System</span>
+            </div>
+        </div>
+
+        <nav>
+            <button class="nav-item active" onclick="showSection('dashboard')">
+                Dashboard
+            </button>
+
+            <button class="nav-item" onclick="showSection('transactions')">
+                Transactions
+            </button>
+        </nav>
+
+        <div class="account-selector">
+
+            <label>Account ID</label>
+
+            <div class="account-input">
+                <input
+                        type="number"
+                        id="accountId"
+                        value="1"
+                        min="1"
+                >
+
+                <button onclick="loadAccount()">
+                    Load
+                </button>
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+
+        <!-- HEADER -->
+        <header class="header">
+
+            <div>
+                <p class="eyebrow">ACCOUNT OVERVIEW</p>
+                <h1>Dashboard</h1>
+            </div>
+
+            <div class="status">
+                <span class="status-dot"></span>
+                System Online
+            </div>
+
+        </header>
+
+
+        <!-- DASHBOARD -->
+        <section id="dashboard" class="section active">
+
+            <!-- ACCOUNT CARD -->
+            <div class="account-card">
+
+                <div class="account-card-top">
+
+                    <div>
+                        <p class="card-label">ACCOUNT HOLDER</p>
+                        <h2 id="accountHolder">Loading...</h2>
+                    </div>
+
+                    <div class="account-number">
+                        <p class="card-label">ACCOUNT NUMBER</p>
+                        <span id="accountNumber">---</span>
+                    </div>
+
+                </div>
+
+                <div class="balance-section">
+
+                    <p class="card-label">AVAILABLE BALANCE</p>
+
+                    <h1 id="balance">₹0.00</h1>
+
+                </div>
+
+            </div>
+
+
+            <!-- ACTIONS -->
+            <div class="section-title">
+
+                <div>
+                    <p class="eyebrow">ACCOUNT OPERATIONS</p>
+                    <h2>Manage Money</h2>
+                </div>
+
+            </div>
+
+
+            <div class="action-grid">
+
+                <!-- DEPOSIT -->
+                <div class="action-card">
+
+                    <div class="action-icon deposit-icon">
+                        +
+                    </div>
+
+                    <h3>Deposit</h3>
+
+                    <p>
+                        Add money to your account.
+                    </p>
+
+                    <input
+                            type="number"
+                            id="depositAmount"
+                            placeholder="Enter amount"
+                            min="0"
+                            step="0.01"
+                    >
+
+                    <button
+                            class="primary-button"
+                            onclick="deposit()"
+                    >
+                        Deposit Money
+                    </button>
+
+                </div>
+
+
+                <!-- WITHDRAW -->
+                <div class="action-card">
+
+                    <div class="action-icon withdraw-icon">
+                        −
+                    </div>
+
+                    <h3>Withdraw</h3>
+
+                    <p>
+                        Withdraw money from your account.
+                    </p>
+
+                    <input
+                            type="number"
+                            id="withdrawAmount"
+                            placeholder="Enter amount"
+                            min="0"
+                            step="0.01"
+                    >
+
+                    <button
+                            class="secondary-button"
+                            onclick="withdraw()"
+                    >
+                        Withdraw Money
+                    </button>
+
+                </div>
+
+
+                <!-- TRANSFER -->
+                <div class="action-card">
+
+                    <div class="action-icon transfer-icon">
+                        →
+                    </div>
+
+                    <h3>Transfer</h3>
+
+                    <p>
+                        Send money to another account.
+                    </p>
+
+                    <input
+                            type="number"
+                            id="toAccountId"
+                            placeholder="Receiver account ID"
+                            min="1"
+                    >
+
+                    <input
+                            type="number"
+                            id="transferAmount"
+                            placeholder="Enter amount"
+                            min="0"
+                            step="0.01"
+                    >
+
+                    <button
+                            class="primary-button"
+                            onclick="transfer()"
+                    >
+                        Transfer Money
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- RECENT TRANSACTIONS -->
+            <div class="section-title transaction-heading">
+
+                <div>
+                    <p class="eyebrow">ACTIVITY</p>
+                    <h2>Recent Transactions</h2>
+                </div>
+
+                <button
+                        class="text-button"
+                        onclick="showSection('transactions')"
+                >
+                    View All
+                </button>
+
+            </div>
+
+            <div class="transaction-container">
+
+                <table>
+
+                    <thead>
+
+                    <tr>
+                        <th>TYPE</th>
+                        <th>FROM</th>
+                        <th>TO</th>
+                        <th>AMOUNT</th>
+                        <th>DATE</th>
+                    </tr>
+
+                    </thead>
+
+                    <tbody id="recentTransactions">
+
+                    <tr>
+                        <td colspan="5" class="empty">
+                            Loading transactions...
+                        </td>
+                    </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- TRANSACTIONS PAGE -->
+        <section id="transactions" class="section">
+
+            <div class="section-title">
+
+                <div>
+                    <p class="eyebrow">ACCOUNT ACTIVITY</p>
+                    <h2>Transaction History</h2>
+                </div>
+
+                <button
+                        class="text-button"
+                        onclick="loadTransactions()"
+                >
+                    Refresh
+                </button>
+
+            </div>
+
+            <div class="transaction-container">
+
+                <table>
+
+                    <thead>
+
+                    <tr>
+                        <th>ID</th>
+                        <th>TYPE</th>
+                        <th>FROM</th>
+                        <th>TO</th>
+                        <th>AMOUNT</th>
+                        <th>DATE</th>
+                    </tr>
+
+                    </thead>
+
+                    <tbody id="allTransactions">
+
+                    <tr>
+                        <td colspan="6" class="empty">
+                            No transactions
+                        </td>
+                    </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+
+<script src="script.js"></script>
+
+</body>
+
+</html>
