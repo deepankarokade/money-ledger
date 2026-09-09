@@ -16,62 +16,92 @@ import java.math.BigDecimal;
 @RestController
 @RequestMapping("/api/accounts")
 public class AccountController {
+
     private final AccountServiceImp accountServiceImp;
 
     public AccountController(AccountServiceImp accountServiceImp) {
         this.accountServiceImp = accountServiceImp;
     }
 
-    //CREATE
+    // CREATE ACCOUNT
     @PostMapping
     public ResponseEntity<AccountResponse> createAccount(
             @Valid @RequestBody CreateAccountRequest request
-            ){
-        AccountResponse response = accountServiceImp.createAccount(request);
+    ) {
+
+        AccountResponse response =
+                accountServiceImp.createAccount(request);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
     }
 
-    //DEPOSIT
+
+    // DEPOSIT
     @PostMapping("/deposit")
     public ResponseEntity<AccountResponse> deposit(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody DepositRequest request
-    ){
+    ) {
 
-        AccountResponse response = accountServiceImp.deposit(request);
+        AccountResponse response =
+                accountServiceImp.deposit(
+                        request,
+                        idempotencyKey
+                );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
     }
 
+
+    // WITHDRAW
     @PostMapping("/withdraw")
     public ResponseEntity<AccountResponse> withdraw(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody WithdrawRequest request
-    ){
+    ) {
 
-        AccountResponse response = accountServiceImp.withdraw(request);
+        AccountResponse response =
+                accountServiceImp.withdraw(
+                        request,
+                        idempotencyKey
+                );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
     }
 
+
+    // TRANSFER
     @PostMapping("/transfer")
     public ResponseEntity<AccountResponse> transfer(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody TransferRequest request
-            ){
+    ) {
 
-        accountServiceImp.transfer(request);
+        accountServiceImp.transfer(
+                request,
+                idempotencyKey
+        );
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity
+                .ok()
+                .build();
     }
 
+
+    // GET BALANCE
     @GetMapping("/{id}/balance")
-    public ResponseEntity<BigDecimal> getBalance(@PathVariable Long id){
-        BigDecimal balance = accountServiceImp.getBalance(id);
+    public ResponseEntity<BigDecimal> getBalance(
+            @PathVariable Long id
+    ) {
+
+        BigDecimal balance =
+                accountServiceImp.getBalance(id);
 
         return ResponseEntity.ok(balance);
     }

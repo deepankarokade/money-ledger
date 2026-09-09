@@ -81,4 +81,13 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.NOT_FOUND)
                 .body(errorResponse);
     }
+    
+    @ExceptionHandler(IdempotencyKeyConflictException.class)
+    public ResponseEntity<String> handleIdempotencyConflict(
+            IdempotencyKeyConflictException ex) {
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ex.getMessage());
+    }
 }

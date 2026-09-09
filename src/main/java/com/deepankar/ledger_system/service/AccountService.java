@@ -10,9 +10,24 @@ import java.math.BigDecimal;
 
 public interface AccountService {
 
-     AccountResponse createAccount(CreateAccountRequest createAccountRequest);
-     AccountResponse deposit(DepositRequest depositRequest);
-     AccountResponse withdraw(WithdrawRequest withdrawRequest);
-     void transfer(TransferRequest transferRequest);
-     BigDecimal getBalance(Long id);
+    AccountResponse createAccount(
+            CreateAccountRequest createAccountRequest
+    );
+
+    AccountResponse deposit(
+            DepositRequest depositRequest,
+            String idempotencyKey
+    );
+
+    AccountResponse withdraw(
+            WithdrawRequest withdrawRequest,
+            String idempotencyKey
+    );
+
+    void transfer(
+            TransferRequest transferRequest,
+            String idempotencyKey
+    );
+
+    BigDecimal getBalance(Long id);
 }
