@@ -1,0 +1,34 @@
+BASIC FLOW
+
+Request comes in
+      ↓
+Find idempotency key in DB
+      ↓
+If found → return old response
+      ↓
+If NOT found
+      ↓
+Perform deposit
+      ↓
+Save idempotency record
+
+AT THE SAME TIME
+
+              Idempotency-Key = ABC
+                     │
+             ┌───────┴───────┐
+             ↓               ↓
+         Request A       Request B
+             │               │
+             ↓               ↓
+       Check database   Check database
+             │               │
+             ↓               ↓
+          NOT FOUND       NOT FOUND
+             │               │
+             ↓               ↓
+        Deposit ₹500     Deposit ₹500
+             │               │
+             └───────┬───────┘
+                     ↓
+                ₹1000 deposited

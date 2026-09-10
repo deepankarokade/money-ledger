@@ -90,4 +90,13 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.CONFLICT)
                 .body(ex.getMessage());
     }
+
+    @ExceptionHandler(IdempotencyRequestInProgressException.class)
+    public ResponseEntity<String> handleIdempotencyRequestInProgressException(
+            IdempotencyRequestInProgressException ex) {
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ex.getMessage());
+    }
 }

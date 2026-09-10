@@ -2,8 +2,12 @@ package com.deepankar.ledger_system.entity;
 
 import java.time.LocalDateTime;
 
+import com.deepankar.ledger_system.enums.IdempotencyStatus;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -37,6 +41,10 @@ public class IdempotencyRecord {
     @Column(name = "response_body", columnDefinition = "TEXT")
     private String responseBody;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private IdempotencyStatus status;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 }
@@ -49,5 +57,6 @@ public class IdempotencyRecord {
 | `requestHash`    | Proves which request that key belonged to |
 | `responseStatus` | Original HTTP status                      |
 | `responseBody`   | Original response                         |
+| `status      `   | PROCESSING/COMPLETED                      |
 | `createdAt`      | When the request was processed            |
 */

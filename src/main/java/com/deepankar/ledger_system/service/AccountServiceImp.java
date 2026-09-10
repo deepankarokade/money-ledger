@@ -18,6 +18,8 @@ import com.deepankar.ledger_system.mapper.AccountMapper;
 import com.deepankar.ledger_system.repository.AccountRepository;
 import com.deepankar.ledger_system.repository.IdempotencyRecordRepository;
 import com.deepankar.ledger_system.repository.TransactionRepository;
+import com.deepankar.ledger_system.enums.IdempotencyStatus;
+import com.deepankar.ledger_system.exception.IdempotencyRequestInProgressException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,6 +42,7 @@ public class AccountServiceImp implements AccountService{
     private final AccountMapper accountMapper;
     private final TransactionRepository transactionRepository;
     private final IdempotencyRecordRepository idempotencyRecordRepository;
+    private final IdempotencyServiceImp idempotencyServiceImp;
     private final ObjectMapper objectMapper;
 
     public AccountServiceImp(
@@ -47,12 +50,14 @@ public class AccountServiceImp implements AccountService{
             AccountMapper accountMapper,
             TransactionRepository transactionRepository,
             IdempotencyRecordRepository idempotencyRecordRepository,
+            IdempotencyServiceImp idempotencyServiceImp,
             ObjectMapper objectMapper
     ){
         this.accountRepository = accountRepository;
         this.accountMapper = accountMapper;
         this.transactionRepository = transactionRepository;
         this.idempotencyRecordRepository = idempotencyRecordRepository;
+        this.idempotencyServiceImp = idempotencyServiceImp;
         this.objectMapper = objectMapper;
     }
 
@@ -87,125 +92,181 @@ public class AccountServiceImp implements AccountService{
         String idempotencyKey
 ) {
 
-        String requestJson;
+    // 1. Convert request to JSON
+    String requestJson;
 
-        try {
-            requestJson = objectMapper.writeValueAsString(depositRequest);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize request", e);
+    try {
+        requestJson = objectMapper.writeValueAsString(depositRequest);
+    } catch (JsonProcessingException e) {
+        throw new RuntimeException("Failed to serialize request", e);
+    }
+
+
+    // 2. Generate request hash
+    String requestHash;
+
+    try {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+
+        byte[] hashBytes =
+                digest.digest(
+                        requestJson.getBytes(StandardCharsets.UTF_8)
+                );
+
+        StringBuilder hash = new StringBuilder();
+
+        for (byte b : hashBytes) {
+            hash.append(String.format("%02x", b));
         }
 
-        String requestHash;
+        requestHash = hash.toString();
 
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-
-            byte[] hashBytes =
-                    digest.digest(requestJson.getBytes(StandardCharsets.UTF_8));
-
-            StringBuilder hash = new StringBuilder();
-
-            for (byte b : hashBytes) {
-                hash.append(String.format("%02x", b));
-            }
-
-            requestHash = hash.toString();
-
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 algorithm not found", e);
-        }
+    } catch (NoSuchAlgorithmException e) {
+        throw new RuntimeException("SHA-256 algorithm not found", e);
+    }
 
 
-        Optional<IdempotencyRecord> existingRecord =
-                idempotencyRecordRepository.findByIdempotencyKey(idempotencyKey);
-
-        if (existingRecord.isPresent()) {
-
-            IdempotencyRecord record = existingRecord.get();
-
-            // Same key but different request
-            if (!record.getRequestHash().equals(requestHash)) {
-               throw new IdempotencyKeyConflictException(
-            "Idempotency key already used for a different request"
-                );
-            }
-
-            // Same key + same request
-            try {
-                return objectMapper.readValue(
-                        record.getResponseBody(),
-                        AccountResponse.class
-                );
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(
-                        "Failed to read idempotent response", e
-                );
-            }
-        }
-
-            Long id = depositRequest.getId();
-            BigDecimal amount = depositRequest.getAmount();
-
-            // Validate amount
-            if(amount == null || amount.compareTo(BigDecimal.ZERO) <= 0){
-                throw new InvalidAmountException();
-            }
-
-            // Locked read
-            Account account = accountRepository.findByIdForUpdate(id)
-                    .orElseThrow(() -> new AccountNotFoundException(id));
-
-            // Add amount
-            account.setBalance(
-                    account.getBalance().add(amount)
-            );
-
-            // Create Transaction Record
-            Transaction transaction = new Transaction();
-
-            transaction.setFromAccount(null);
-            transaction.setToAccount(account);
-            transaction.setAmount(amount);
-            transaction.setType(TransactionType.DEPOSIT);
-
-            // Save Transaction
-            transactionRepository.save(transaction);
-
-            accountRepository.save(account);
+    // 3. Try to claim the idempotency key
+    boolean claimed = idempotencyServiceImp.tryClaim(
+            idempotencyKey,
+            requestHash
+    );
 
 
-            // 2. Create response
-            AccountResponse response = accountMapper.toResponse(account);
+    // 4. If we couldn't claim it, the key already exists
+    if (!claimed) {
+
+        IdempotencyRecord record =
+                idempotencyRecordRepository
+                        .findByIdempotencyKey(idempotencyKey)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Idempotency record not found"
+                                )
+                        );
 
 
-            // 3. Save idempotency record
-            IdempotencyRecord record = new IdempotencyRecord();
+        // Same key + different request
+        if (!record.getRequestHash().equals(requestHash)) {
 
-            record.setIdempotencyKey(idempotencyKey);
-
-        try {
-
-            record.setRequestHash(requestHash);
-
-            record.setResponseBody(
-                    objectMapper.writeValueAsString(response)
-            );
-
-        } catch (JsonProcessingException e) {
-
-            throw new RuntimeException(
-                    "Failed to serialize idempotency data", e
+            throw new IdempotencyKeyConflictException(
+                    "Idempotency key already used for a different request"
             );
         }
 
-        record.setResponseStatus(201);
-        record.setCreatedAt(LocalDateTime.now());
 
-        idempotencyRecordRepository.save(record);
+        /*
+         * Same key + same request.
+         *
+         * We will properly handle PROCESSING vs COMPLETED
+         * in the next step.
+         */
+        if (record.getStatus() == IdempotencyStatus.COMPLETED) {
 
+            if (record.getStatus() == IdempotencyStatus.PROCESSING) {
 
-            return response;
+                throw new IdempotencyRequestInProgressException(
+                    "Request with this idempotency key is already processing"
+                );
+            }
         }
+
+        // For now, don't process a request that is still running.
+        throw new RuntimeException(
+                "Request with this idempotency key is already processing"
+        );
+    }
+
+
+    // =========================================================
+    // 5. WE SUCCESSFULLY CLAIMED THE KEY
+    // =========================================================
+
+    Long id = depositRequest.getId();
+    BigDecimal amount = depositRequest.getAmount();
+
+
+    // 6. Validate amount
+    if (amount == null ||
+            amount.compareTo(BigDecimal.ZERO) <= 0) {
+
+        throw new InvalidAmountException();
+    }
+
+
+    // 7. Lock account
+    Account account = accountRepository
+            .findByIdForUpdate(id)
+            .orElseThrow(() ->
+                    new AccountNotFoundException(id)
+            );
+
+
+    // 8. Add amount
+    account.setBalance(
+            account.getBalance().add(amount)
+    );
+
+
+    // 9. Create transaction record
+    Transaction transaction = new Transaction();
+
+    transaction.setFromAccount(null);
+    transaction.setToAccount(account);
+    transaction.setAmount(amount);
+    transaction.setType(TransactionType.DEPOSIT);
+
+
+    // 10. Save transaction
+    transactionRepository.save(transaction);
+
+    accountRepository.save(account);
+
+
+    // 11. Create response
+    AccountResponse response =
+            accountMapper.toResponse(account);
+
+
+    // =========================================================
+    // 12. UPDATE EXISTING IDEMPOTENCY RECORD
+    //     PROCESSING → COMPLETED
+    // =========================================================
+
+    IdempotencyRecord record =
+            idempotencyRecordRepository
+                    .findByIdempotencyKey(idempotencyKey)
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "Idempotency record not found"
+                            )
+                    );
+
+
+    try {
+
+        record.setResponseBody(
+                objectMapper.writeValueAsString(response)
+        );
+
+    } catch (JsonProcessingException e) {
+
+        throw new RuntimeException(
+                "Failed to serialize idempotency data",
+                e
+        );
+    }
+
+
+    record.setResponseStatus(201);
+    record.setStatus(IdempotencyStatus.COMPLETED);
+
+    idempotencyRecordRepository.save(record);
+
+
+    // 13. Return response
+    return response;
+}
 
     @Override
     @Transactional
