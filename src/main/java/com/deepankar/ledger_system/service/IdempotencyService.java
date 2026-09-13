@@ -1,12 +1,12 @@
 package com.deepankar.ledger_system.service;
 
+import com.deepankar.ledger_system.entity.IdempotencyRecord;
+
 public interface IdempotencyService {
-    public boolean tryClaim(
-        String idempotencyKey,
-        String requestHash
-    );
+    public IdempotencyRecord tryClaim(
+            String idempotencyKey,
+            String requestHash);
 
     public void markFailed(
-        String idempotencyKey
-    );
+            String idempotencyKey);
 }
