@@ -1,0 +1,33 @@
+                  REGISTER
+                     │
+                     ▼
+              UserRepository
+                     │
+                     ▼
+              BCrypt password
+                     │
+                     ▼
+                PostgreSQL
+
+------------------------------------------------
+
+                   LOGIN
+                     │
+                     ▼
+              AuthenticationManager
+                     │
+                     ▼
+          CustomUserDetailsService
+                     │
+                     ▼
+              UserRepository
+                     │
+                     ▼
+              PasswordEncoder
+                     │
+                     ▼
+                 Valid?
+                /      \
+              NO        YES
+              │          │
+             401         JWT

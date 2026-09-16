@@ -10,7 +10,6 @@ import com.deepankar.ledger_system.entity.IdempotencyRecord;
 import com.deepankar.ledger_system.entity.Transaction;
 import com.deepankar.ledger_system.enums.TransactionType;
 import com.deepankar.ledger_system.exception.AccountNotFoundException;
-import com.deepankar.ledger_system.exception.IdempotencyKeyConflictException;
 import com.deepankar.ledger_system.exception.InsufficientFundsException;
 import com.deepankar.ledger_system.exception.InvalidAmountException;
 import com.deepankar.ledger_system.exception.SameAccountTransferException;
@@ -31,8 +30,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
-import java.util.Optional;
 
 @Service
 public class AccountServiceImp implements AccountService {
